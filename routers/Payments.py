@@ -8,7 +8,7 @@ from pydantic import BaseModel, EmailStr
 from db import get_connection
 
 router = APIRouter(prefix="/api/payments", tags=["payments"])
-stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
+stripe.api_key = os.environ.get("STRIPE_API_KEY")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://faleh.franchisemiddleeast.com")
 STRIPE_REPORT_PRICE_ID = os.environ.get("STRIPE_REPORT_PRICE_ID")
 
