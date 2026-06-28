@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
 from routers import (
-  payments_router)
+  payments_router, assessments_router)
 
 app = FastAPI(title="Faleh Payments API")
 
@@ -17,6 +17,7 @@ app.add_middleware(
 
 # --- Include Routers ---
 app.include_router(payments_router)
+app.include_router(assessments_router)
 
 @app.get("/")
 def read_root():
