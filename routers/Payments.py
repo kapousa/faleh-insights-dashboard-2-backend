@@ -1,15 +1,25 @@
 # routers/payments.py
 import os
+import httpx
 import stripe
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request, Header
 from pydantic import BaseModel, EmailStr
 
 from db import get_connection
 
 router = APIRouter(prefix="/api/payments", tags=["payments"])
-stripe.api_key = os.environ.get("STRIPE_API_KEY")
+stripe.api_key = os.environ["STRIPE_SECRET_KEY"]
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://faleh.franchisemiddleeast.com")
-STRIPE_REPORT_PRICE_ID = os.environ.get("STRIPE_REPORT_PRICE_ID")
+STRIPE_REPORT_PRICE_ID = os.environ["STRIPE_REPORT_PRICE_ID"]
+
+# ─── Webhook verification + forwarding ───
+# n8n's raw-body handling is version-inconsistent, which made HMAC
+# verification unreliable there. Verifying here instead is much more
+# solid — FastAPI gets true raw bytes trivially via request.body(), and
+# Stripe's own SDK (construct_event) handles the HMAC + timestamp check.
+STRIPE_WEBHOOK_SECRET = os.environ["STRIPE_WEBHOOK_SECRET"]
+N8N_FORWARD_URL = os.environ["N8N_FORWARD_URL"]  # e.g. https://faleh-faleh-n8n.qvyj0e.easypanel.host/webhook/stripe-checkout
+INTERNAL_WEBHOOK_SECRET = os.environ["INTERNAL_WEBHOOK_SECRET"]  # shared secret, FastAPI <-> n8n only
 
 
 class CreateCheckoutRequest(BaseModel):
@@ -87,3 +97,45 @@ def get_checkout_session(session_id: str):
         "invoice_url": invoice.hosted_invoice_url if invoice else None,
         "invoice_pdf": invoice.invoice_pdf if invoice else None,
     }
+
+
+@router.post("/webhook")
+async def stripe_webhook(
+    request: Request,
+    stripe_signature: str = Header(None, alias="stripe-signature"),
+):
+    """
+    Receives Stripe's webhook directly. Verifies the signature properly
+    (true raw bytes, no parsing ambiguity), then forwards the exact same
+    raw payload on to n8n for the actual business logic — n8n no longer
+    re-verifies the Stripe signature itself, it just trusts this forward
+    based on the shared INTERNAL_WEBHOOK_SECRET header.
+    """
+    payload = await request.body()
+
+    try:
+        # We don't actually need the parsed `event` object below — we
+        # forward the original raw bytes unchanged — but construct_event
+        # is still what performs the real signature + timestamp check.
+        stripe.Webhook.construct_event(payload, stripe_signature, STRIPE_WEBHOOK_SECRET)
+    except stripe.error.SignatureVerificationError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid signature: {e}")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid payload: {e}")
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(
+                N8N_FORWARD_URL,
+                content=payload,  # forward the exact original bytes, unchanged
+                headers={
+                    "Content-Type": "application/json",
+                    "X-Internal-Secret": INTERNAL_WEBHOOK_SECRET,
+                },
+            )
+        return {"received": True, "forwarded": True, "n8n_status": resp.status_code}
+    except httpx.RequestError as e:
+        # n8n being briefly unreachable shouldn't make Stripe retry forever —
+        # but this DOES mean the report/email chain won't fire, so log loudly.
+        print(f"[stripe_webhook] Failed to forward verified event to n8n: {e}")
+        return {"received": True, "forwarded": False}

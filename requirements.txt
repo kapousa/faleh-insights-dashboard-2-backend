@@ -4,3 +4,4 @@ stripe
 pydantic[email]
 starlette
 psycopg2-binary
+httpx
