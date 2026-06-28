@@ -8,18 +8,18 @@ from pydantic import BaseModel, EmailStr
 from db import get_connection
 
 router = APIRouter(prefix="/api/payments", tags=["payments"])
-stripe.api_key = os.environ["STRIPE_SECRET_KEY"]
+stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://faleh.franchisemiddleeast.com")
-STRIPE_REPORT_PRICE_ID = os.environ["STRIPE_REPORT_PRICE_ID"]
+STRIPE_REPORT_PRICE_ID = os.environ.get("STRIPE_REPORT_PRICE_ID")
 
 # ─── Webhook verification + forwarding ───
 # n8n's raw-body handling is version-inconsistent, which made HMAC
 # verification unreliable there. Verifying here instead is much more
 # solid — FastAPI gets true raw bytes trivially via request.body(), and
 # Stripe's own SDK (construct_event) handles the HMAC + timestamp check.
-STRIPE_WEBHOOK_SECRET = os.environ["STRIPE_WEBHOOK_SECRET"]
-N8N_FORWARD_URL = os.environ["N8N_FORWARD_URL"]  # e.g. https://faleh-faleh-n8n.qvyj0e.easypanel.host/webhook/stripe-checkout
-INTERNAL_WEBHOOK_SECRET = os.environ["INTERNAL_WEBHOOK_SECRET"]  # shared secret, FastAPI <-> n8n only
+STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET")
+N8N_FORWARD_URL = os.environ.get("N8N_FORWARD_URL")  # e.g. https://faleh-faleh-n8n.qvyj0e.easypanel.host/webhook/stripe-checkout
+INTERNAL_WEBHOOK_SECRET = os.environ.get("INTERNAL_WEBHOOK_SECRET")  # shared secret, FastAPI <-> n8n only
 
 
 class CreateCheckoutRequest(BaseModel):
