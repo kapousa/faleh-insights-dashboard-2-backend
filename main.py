@@ -4,7 +4,7 @@ from starlette.middleware.cors import CORSMiddleware
 from routers import (
   payments_router)
 
-app = FastAPI()
+app = FastAPI(title="Faleh Payments API")
 
 # CORS Middleware should typically be after authentication if you want auth to apply to CORS pre-flight
 app.add_middleware(
