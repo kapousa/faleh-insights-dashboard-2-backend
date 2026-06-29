@@ -8,7 +8,7 @@ from pydantic import BaseModel, EmailStr
 from db import get_connection
 
 router = APIRouter(prefix="/api/payments", tags=["payments"])
-stripe.api_key = os.environ.get("STRIPE_API_KEY")
+stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://faleh.franchisemiddleeast.com")
 STRIPE_REPORT_PRICE_ID = os.environ.get("STRIPE_REPORT_PRICE_ID")
 
@@ -113,15 +113,20 @@ async def stripe_webhook(
     """
     payload = await request.body()
 
+    if not stripe_signature:
+        raise HTTPException(status_code=400, detail="Missing stripe-signature header")
+
     try:
-        # We don't actually need the parsed `event` object below — we
-        # forward the original raw bytes unchanged — but construct_event
-        # is still what performs the real signature + timestamp check.
         stripe.Webhook.construct_event(payload, stripe_signature, STRIPE_WEBHOOK_SECRET)
-    except stripe.error.SignatureVerificationError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid signature: {e}")
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=f"Invalid payload: {e}")
+    except Exception as e:
+        # Catch broadly here on purpose — different stripe-python SDK
+        # versions raise slightly different exception types for a bad
+        # signature, and we want a clean 400 (not a bare 500) either way,
+        # plus a full traceback in the logs so we can see exactly what
+        # Stripe's SDK actually raised.
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=400, detail=f"Signature verification failed: {e}")
 
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
@@ -134,8 +139,12 @@ async def stripe_webhook(
                 },
             )
         return {"received": True, "forwarded": True, "n8n_status": resp.status_code}
-    except httpx.RequestError as e:
-        # n8n being briefly unreachable shouldn't make Stripe retry forever —
-        # but this DOES mean the report/email chain won't fire, so log loudly.
+    except Exception as e:
+        # Same idea — n8n being briefly unreachable shouldn't 500 back to
+        # Stripe (that just triggers pointless retries), but we DO want the
+        # real exception visible in logs since it means the report/email
+        # chain silently won't fire for this event.
+        import traceback
+        traceback.print_exc()
         print(f"[stripe_webhook] Failed to forward verified event to n8n: {e}")
         return {"received": True, "forwarded": False}
