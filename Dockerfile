@@ -23,4 +23,5 @@ COPY . .
 EXPOSE 8000
 
 # Use exec form for proper signal handling
-CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Add --log-level debug to the end of the command
+CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "debug"]

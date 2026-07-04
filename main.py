@@ -11,22 +11,19 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+import traceback # Add this import at the top
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup logic
     try:
-        logger.info("Starting up: Checking environment variables and connections...")
-        # Access settings directly
-        if not settings.database_url:
-            raise ValueError("DATABASE_URL is missing in settings!")
-
-        logger.info(f"Database URL detected: {settings.database_url[:10]}...")  # Print only prefix for security
+        # ... your startup code ...
         logger.info("Startup complete.")
     except Exception as e:
-        logger.error(f"FATAL: Application startup failed: {e}")
-        raise e  # This confirms exactly what failed
+        # This will output the full technical trace of the crash
+        logger.error("FATAL: Application startup failed!")
+        logger.error(traceback.format_exc())
+        raise e
     yield
-    # Shutdown logic
     logger.info("Shutting down...")
 
 app = FastAPI(title="Faleh Backend", lifespan=lifespan)
