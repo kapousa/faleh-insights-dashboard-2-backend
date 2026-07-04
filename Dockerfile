@@ -11,14 +11,15 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
+# Copy only the requirements file first to leverage Docker cache
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Corrected COPY command
+# Now copy the rest of your source code
 COPY . .
 
 EXPOSE 8000
 
-# Using exec form for signal handling (allows clean shutdown)
+# Use exec form for proper signal handling
 CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
