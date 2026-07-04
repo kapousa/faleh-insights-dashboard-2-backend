@@ -13,7 +13,7 @@ class Settings(BaseSettings):
 
     # Pydantic Settings Configuration
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(".env",),
         env_file_encoding="utf-8",
         # This allows the class to ignore any other variables in .env
         # that aren't defined here, preventing future crashes.
