@@ -12,11 +12,12 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copy only the requirements file first to leverage Docker cache
+# This prevents re-installing packages every time you change a .py file
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Now copy the rest of your source code
+# Copy the rest of your source code
 COPY . .
 
 EXPOSE 8000
