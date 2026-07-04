@@ -69,7 +69,11 @@ def get_checkout_session(session_id: str):
         raise HTTPException(status_code=404, detail="Session not found")
 
     invoice = session.invoice  # expanded object, or None
-    submission_id = session.metadata.get("submission_id") if session.metadata else None
+
+    # Stripe SDK returns StripeObject, not a plain dict — convert before
+    # calling .get() otherwise you get AttributeError: 'get'
+    metadata = dict(session.metadata) if session.metadata else {}
+    submission_id = metadata.get("submission_id")
 
     # The report only exists once the n8n webhook has finished calling the
     # Executive Summary flow and written report_url back to Postgres.
@@ -89,13 +93,16 @@ def get_checkout_session(session_id: str):
         finally:
             conn.close()
 
+    # Convert invoice StripeObject to dict for safe field access
+    invoice_dict = dict(invoice) if invoice else {}
+
     return {
         "paid": session.payment_status == "paid",
         "email": session.customer_details.email if session.customer_details else None,
         "report_url": report_url,
         "report_ready": report_url is not None,
-        "invoice_url": invoice.hosted_invoice_url if invoice else None,
-        "invoice_pdf": invoice.invoice_pdf if invoice else None,
+        "invoice_url": invoice_dict.get("hosted_invoice_url"),
+        "invoice_pdf": invoice_dict.get("invoice_pdf"),
     }
 
 
