@@ -10,20 +10,21 @@ from src.setup.settings import Settings, settings
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup logic
     try:
         logger.info("Starting up: Checking environment variables and connections...")
-        # Verify critical env var exists
-        DATABASE_URL=settings.database_url
-        if not DATABASE_URL:
-            raise ValueError("DATABASE_URL is not set!")
-        # Add your database connection test here
+        # Access settings directly
+        if not settings.database_url:
+            raise ValueError("DATABASE_URL is missing in settings!")
+
+        logger.info(f"Database URL detected: {settings.database_url[:10]}...")  # Print only prefix for security
         logger.info("Startup complete.")
     except Exception as e:
         logger.error(f"FATAL: Application startup failed: {e}")
-        raise e  # This will stop the app and show you the exact error
+        raise e  # This confirms exactly what failed
     yield
     # Shutdown logic
     logger.info("Shutting down...")
@@ -43,4 +44,6 @@ app.include_router(assessments_router)
 
 @app.get("/")
 def read_root():
+    import os
+    print(f"DATABASE_URL is: {os.getenv('DATABASE_URL')}")  # Check if this is None
     return {"message": "Hello from Faleh Backend"}
