@@ -70,9 +70,9 @@ def get_checkout_session(session_id: str):
 
     invoice = session.invoice  # expanded object, or None
 
-    # Stripe SDK returns StripeObject, not a plain dict — convert before
-    # calling .get() otherwise you get AttributeError: 'get'
-    metadata = dict(session.metadata) if session.metadata else {}
+    # Use .to_dict() — Stripe's StripeObject doesn't support plain dict()
+    # conversion (it breaks with KeyError on integer index).
+    metadata = session.metadata.to_dict() if session.metadata else {}
     submission_id = metadata.get("submission_id")
 
     # The report only exists once the n8n webhook has finished calling the
@@ -94,7 +94,7 @@ def get_checkout_session(session_id: str):
             conn.close()
 
     # Convert invoice StripeObject to dict for safe field access
-    invoice_dict = dict(invoice) if invoice else {}
+    invoice_dict = invoice.to_dict() if invoice else {}
 
     return {
         "paid": session.payment_status == "paid",
