@@ -142,7 +142,7 @@ async def stripe_webhook(
                 content=payload,  # forward the exact original bytes, unchanged
                 headers={
                     "Content-Type": "application/json",
-                    "X-Internal-Secret": INTERNAL_WEBHOOK_SECRET,
+                    "x-internal-secret": INTERNAL_WEBHOOK_SECRET,
                 },
             )
         return {"received": True, "forwarded": True, "n8n_status": resp.status_code}
