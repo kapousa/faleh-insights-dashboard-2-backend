@@ -139,10 +139,10 @@ async def stripe_webhook(
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.post(
                 N8N_FORWARD_URL,
-                content=payload,
+                content=payload,  # forward the exact original bytes, unchanged
                 headers={
                     "Content-Type": "application/json",
-                    # X-Internal-Secret removed
+                    "X-Internal-Secret": INTERNAL_WEBHOOK_SECRET,
                 },
             )
         return {"received": True, "forwarded": True, "n8n_status": resp.status_code}
